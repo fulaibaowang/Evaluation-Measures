@@ -53,6 +53,7 @@ public class EvaluatorTask1b {
     // Use version 2 for BioASQ1&2, version 3 for BioASQ3&4, version 5 since BioASQ5,version 8 since BioASQ8 
     public static final int BIOASQ2 = 2, BIOASQ3 = 3, BIOASQ5 = 5, BIOASQ8 = 8, BIOASQ9 = 9;
     boolean verbosity = false;
+    boolean perQuestion = false;
 
 
     /**
@@ -170,6 +171,9 @@ public class EvaluatorTask1b {
             System.out.println("MAP triples: " + MapTriples(qevalArraySnipps));
             System.out.println("GMAP triples: " + GMapTriples(qevalArraySnipps));
         }
+        if (perQuestion) {
+            printPerQuestionPhaseA(qevalArrayDocs, qevalArraySnipps);
+        }
     }
 
     /**
@@ -219,6 +223,9 @@ public class EvaluatorTask1b {
             System.out.println("YesNo macroF1: " + macroF1ExactAnswersYesNo(qevalArray));
             System.out.println("YesNo F1 yes: " + F1ExactAnswersYesNo(qevalArray, true));
             System.out.println("YesNo F1 no: " + F1ExactAnswersYesNo(qevalArray, false));
+        }
+        if (perQuestion) {
+            printPerQuestionPhaseB(qevalArray);
         }
     }
 
@@ -888,6 +895,7 @@ public class EvaluatorTask1b {
         opt.addOption("phaseA", false, "phase A of Task B");
         opt.addOption("phaseB", false, "phase B of Task B");
         opt.addOption("verbose", false, "verbose output");
+        opt.addOption("perQuestion", false, "print per-question metrics (tab-separated, prefix PERQ)");
 
         return opt;
     }
@@ -910,11 +918,75 @@ public class EvaluatorTask1b {
         this.verbosity = verbosity;
     }
 
+    public void setPerQuestion(boolean perQuestion) {
+        this.perQuestion = perQuestion;
+    }
+
+    private static String num(double v) {
+        if (Double.isNaN(v)) return "NA";
+        return Double.toString(v);
+    }
+
+    /**
+     * Print one TSV line per question for Phase A (prefix PERQ for parsing).
+     */
+    private void printPerQuestionPhaseA(ArrayList<QuestionAnswerEvaluator> qevalArrayDocs,
+                                        ArrayList<QuestionAnswerEvaluator> qevalArraySnipps) {
+        for (QuestionAnswerEvaluator q : qevalArrayDocs) {
+            String id = q.getQuestionID();
+            QuestionAnswerEvaluator qs = null;
+            for (QuestionAnswerEvaluator s : qevalArraySnipps) {
+                if (s.getQuestionID().equals(id)) { qs = s; break; }
+            }
+            StringBuilder sb = new StringBuilder("PERQ\t").append(id);
+            // concepts: c_P, c_R, c_F1, c_MAP, c_GMAP
+            double apC = q.getAveragePrecisionConcepts();
+            double gmapC = q.hasQuestionConcepts() && !Double.isNaN(apC) ? Math.log(apC + epsilon) : Double.NaN;
+            sb.append("\t").append(num(q.getConceptsPrecision())).append("\t").append(num(q.getConceptsRecall()))
+              .append("\t").append(num(q.getConceptsF1())).append("\t").append(num(apC)).append("\t").append(num(gmapC));
+            // documents: d_P, d_R, d_F1, d_MAP, d_GMAP
+            double apD = q.getAveragePrecisionDocuments();
+            double gmapD = !Double.isNaN(apD) ? Math.log(apD + epsilon) : Double.NaN;
+            sb.append("\t").append(num(q.getArticlesPrecision())).append("\t").append(num(q.getArticlesRecall()))
+              .append("\t").append(num(q.getArticlesF1())).append("\t").append(num(apD)).append("\t").append(num(gmapD));
+            // snippets, triples (from qs if present)
+            if (qs != null) {
+                double apS = qs.getAveragePrecisionSnippets();
+                double gmapS = !Double.isNaN(apS) ? Math.log(apS + epsilon) : Double.NaN;
+                sb.append("\t").append(num(qs.getSnippetsPrecision())).append("\t").append(num(qs.getSnippetsRecall()))
+                  .append("\t").append(num(qs.getSnippetsF1())).append("\t").append(num(apS)).append("\t").append(num(gmapS));
+                double apT = qs.getAveragePrecisionTriples();
+                double gmapT = qs.is_triple && !Double.isNaN(apT) ? Math.log(apT + epsilon) : Double.NaN;
+                sb.append("\t").append(num(qs.getTriplesPrecision())).append("\t").append(num(qs.getTriplesRecall()))
+                  .append("\t").append(num(qs.getTriplesF1())).append("\t").append(num(apT)).append("\t").append(num(gmapT));
+            } else {
+                for (int i = 0; i < 10; i++) sb.append("\tNA");
+            }
+            System.out.println(sb.toString());
+        }
+    }
+
+    /**
+     * Print one TSV line per question for Phase B (prefix PERQ for parsing).
+     */
+    private void printPerQuestionPhaseB(ArrayList<QuestionAnswerEvaluator> qevalArray) {
+        for (QuestionAnswerEvaluator q : qevalArray) {
+            StringBuilder sb = new StringBuilder("PERQ\t").append(q.getQuestionID());
+            sb.append("\t").append(num(q.getAccuracyYesNo())).append("\t").append(num(q.getStrictAccuracy()))
+              .append("\t").append(num(q.getLenientAccuracy())).append("\t").append(num(q.getMRR()))
+              .append("\t").append(num(q.getPrecisionEA())).append("\t").append(num(q.getRecallEA()))
+              .append("\t").append(num(q.getF1EA()));
+            // YN_macroF1, YN_F1_yes, YN_F1_no are set-level only; output NA per question
+            sb.append("\tNA\tNA\tNA");
+            System.out.println(sb.toString());
+        }
+    }
+
     /**
      * Describe parameters for calling the evaluation script
      */
     private static void usage() {
-        System.out.println("Usage: -phaseX [-e version] goldenfile systemfile [-verbose]");
+        System.out.println("Usage: -phaseX [-e version] goldenfile systemfile [-verbose] [-perQuestion]");
         System.out.println("Where X can be either A or B for the corresponding phases,");
         System.out.println("goldenfile systemfile are the files (golden and submitted respectively) ");
         System.out.println("and version of the challenge can be 2 (for BioASQ1&2), 3 (for BioASQ3&4), 5 (for BioASQ5,6&7), 8 (for BioASQ8), 9 (for BioASQ9). "
@@ -956,6 +1028,9 @@ public class EvaluatorTask1b {
 
             if (line.hasOption("verbose")) {
                 eval.setVerbosity(true);
+            }
+            if (line.hasOption("perQuestion")) {
+                eval.setPerQuestion(true);
             }
             if (line.hasOption("phaseA")) {
                 eval.EvaluatePhaseA();
