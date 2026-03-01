@@ -144,6 +144,7 @@ public class EvaluatorTask1b {
                         MeanF1Triples(qevalArraySnipps) + " " +
                         MapTriples(qevalArraySnipps) + " " +
                         GMapTriples(qevalArraySnipps));
+        System.out.println();
 
         if (this.verbosity) {
             System.out.println();
@@ -210,6 +211,7 @@ public class EvaluatorTask1b {
                         + macroF1ExactAnswersYesNo(qevalArray) + " "
                         + F1ExactAnswersYesNo(qevalArray, true) + " "
                         + F1ExactAnswersYesNo(qevalArray, false));
+        System.out.println();
 
         if (this.verbosity) {
             System.out.println();
@@ -976,8 +978,15 @@ public class EvaluatorTask1b {
               .append("\t").append(num(q.getLenientAccuracy())).append("\t").append(num(q.getMRR()))
               .append("\t").append(num(q.getPrecisionEA())).append("\t").append(num(q.getRecallEA()))
               .append("\t").append(num(q.getF1EA()));
-            // YN_macroF1, YN_F1_yes, YN_F1_no are set-level only; output NA per question
-            sb.append("\tNA\tNA\tNA");
+            // YN_macroF1, YN_F1_yes, YN_F1_no: for Yes/No questions only
+            if (q.getQuestion_type() == Question.YESNO) {
+                double ynAcc = q.getAccuracyYesNo();
+                sb.append("\t").append(num(ynAcc));  // YN_macroF1 (per-question = accuracy)
+                sb.append("\t").append(q.is_yes ? num(ynAcc) : "NA");   // YN_F1_yes (only when gold is yes)
+                sb.append("\t").append(!q.is_yes ? num(ynAcc) : "NA");  // YN_F1_no (only when gold is no)
+            } else {
+                sb.append("\tNA\tNA\tNA");
+            }
             System.out.println(sb.toString());
         }
     }
@@ -1014,16 +1023,23 @@ public class EvaluatorTask1b {
                 System.exit(0);
             }
 
+            String[] remaining = line.getArgs();
+            if (remaining == null || remaining.length < 2) {
+                EvaluatorTask1b.usage();
+                System.exit(0);
+            }
+            String goldenPath = remaining[0];
+            String systemPath = remaining[1];
+
             if (line.hasOption("e")) {
                 e = line.getOptionValue("e");
                 if (e == null) {
                     EvaluatorTask1b.usage();
                     System.exit(0);
                 }
-
-                eval = new EvaluatorTask1b(args[3], args[4], Integer.parseInt(e));
+                eval = new EvaluatorTask1b(goldenPath, systemPath, Integer.parseInt(e));
             } else {
-                eval = new EvaluatorTask1b(args[1], args[2], EvaluatorTask1b.BIOASQ2);
+                eval = new EvaluatorTask1b(goldenPath, systemPath, EvaluatorTask1b.BIOASQ2);
             }
 
             if (line.hasOption("verbose")) {

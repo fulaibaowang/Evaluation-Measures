@@ -12,14 +12,16 @@
 
 set -euo pipefail
 
-JAR="$(dirname "$0")/flat/BioASQEvaluation/dist/BioASQEvaluation.jar"
+BASE="$(dirname "$0")"
+JAR="${BASE}/flat/BioASQEvaluation/dist/BioASQEvaluation.jar"
+LIB="${BASE}/flat/BioASQEvaluation/lib"
 if [[ ! -f "$JAR" ]]; then
   echo "JAR not found: $JAR" >&2
   exit 1
 fi
 
-CLASSPATH="${CLASSPATH:-}"
-CP="${CLASSPATH}:${JAR}"
+# Explicit classpath so the evaluator runs without relying on manifest (avoids Windows paths from build)
+CP="${CLASSPATH:-}:${JAR}:${LIB}/commons-cli-1.2.jar:${LIB}/gson-2.2.4.jar:${LIB}/SnowBallStemmer.jar"
 VERSION=9
 OUTPUT_TSV="phaseB_report.tsv"
 PERQUESTION=false
@@ -117,8 +119,9 @@ for i in "${!PAIRS_SYSTEM[@]}"; do
   fi
   split_id=$(basename "$system_path" .json)
 
-  java_args=(-phaseB -e "$VERSION" "$golden_path" "$system_path")
+  java_args=(-phaseB -e "$VERSION")
   [[ "$PERQUESTION" == true ]] && java_args+=(-perQuestion)
+  java_args+=("$golden_path" "$system_path")
   out=$(java -Xmx10G -cp "$CP" evaluation.EvaluatorTask1b "${java_args[@]}" 2>&1) || true
 
   # Metrics line: starts with number, has enough numeric fields (Phase B = 10 numbers)
