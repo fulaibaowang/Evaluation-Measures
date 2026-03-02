@@ -233,17 +233,20 @@ public class Task1bData {
                           }
                          
                       }
-                      
-//                      Edited for BioASQ4 Evaluation (to solve format conflict with Rouge.py)            
-//                      ideal answers are not evaluated with this code, so no need to read them(Rouge and manual queration is used instead)
-
-//                      else if(name.equals("ideal_answer"))
-//                      {
-//                          String ideal="";
-//                          try{ideal = reader.nextString();}catch(IllegalStateException ex){System.out.println(ex.toString());System.out.println(jsonFile);
-//                          }
-//                          qst.setIdeal_answer(ideal);
-//                      }
+                      else if(name.equals("ideal_answer"))
+                      {
+                          String ideal = "";
+                          JsonToken idealPeek = reader.peek();
+                          if (idealPeek == JsonToken.STRING) {
+                              ideal = reader.nextString();
+                          } else if (idealPeek == JsonToken.BEGIN_ARRAY) {
+                              reader.beginArray();
+                              if (reader.hasNext()) ideal = reader.nextString();
+                              while (reader.hasNext()) reader.skipValue();
+                              reader.endArray();
+                          }
+                          qst.setIdeal_answer(ideal != null ? ideal : "");
+                      }
                       else if(name.equals("snippets"))
                       {
                           ArrayList<Snippet> snippets = readSnippets(reader);

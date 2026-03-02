@@ -42,7 +42,12 @@ public class QuestionAnswerEvaluator {
     CalculatedMeasures snippets;
     // Phase B question-level measures
     CalculatedMeasures exact_answers;
-    
+    // ROUGE for ideal answer (NaN when not computed)
+    double rouge2Recall = Double.NaN;
+    double rouge2F1 = Double.NaN;
+    double rougeSu4Recall = Double.NaN;
+    double rougeSu4F1 = Double.NaN;
+
     String question_id;
     int question_type;
     Boolean is_yes=false; // Flag: when true this question is a yesno question and its golden answer is "yes"
@@ -114,6 +119,16 @@ public class QuestionAnswerEvaluator {
             accuracyYesNo(golden.getExact_answer(),response.getExact_answer(),exact_answers);
             // Also store the correct label - yes or no - for label based evaluation (F1-yes, F1-no and macro F1)
             this.is_yes = golden.getExact_answer().getAnswer().equalsIgnoreCase("yes");
+        }
+        // ROUGE for ideal answer: S = system ideal, Ref = golden ideal
+        if (golden.getIdeal_answer() != null && !golden.getIdeal_answer().isEmpty()
+                && response != null && response.getIdeal_answer() != null) {
+            String sysIdeal = response.getIdeal_answer();
+            String refIdeal = golden.getIdeal_answer();
+            rouge2Recall = RougeMetrics.rouge2Recall(sysIdeal, refIdeal);
+            rouge2F1 = RougeMetrics.rouge2F1(sysIdeal, refIdeal);
+            rougeSu4Recall = RougeMetrics.rougeSu4Recall(sysIdeal, refIdeal);
+            rougeSu4F1 = RougeMetrics.rougeSu4F1(sysIdeal, refIdeal);
         }
     }
     
@@ -680,6 +695,11 @@ public class QuestionAnswerEvaluator {
     public int getQuestion_type() {
         return question_type;
     }
+
+    public double getRouge2Recall() { return rouge2Recall; }
+    public double getRouge2F1() { return rouge2F1; }
+    public double getRougeSu4Recall() { return rougeSu4Recall; }
+    public double getRougeSu4F1() { return rougeSu4F1; }
     
     public double getConceptsPrecision()
     {

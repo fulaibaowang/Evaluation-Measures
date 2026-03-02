@@ -95,10 +95,10 @@ if [[ ${#PAIRS_GOLDEN[@]} -eq 0 ]]; then
   exit 1
 fi
 
-# Phase B output order (10 numbers): YesNo Acc, Factoid Strict, Factoid Lenient, Factoid MRR, List P, List R, List F1, YesNo macroF1, YesNo F1 yes, YesNo F1 no
-HEADER="split\tYN_Acc\tF_Strict\tF_Lenient\tF_MRR\tL_P\tL_R\tL_F1\tYN_macroF1\tYN_F1_yes\tYN_F1_no"
+# Phase B output order (14): YN_Acc..YN_F1_no, then R_2_Rec, R_2_F1, R_SU4_Rec, R_SU4_F1
+HEADER="split\tYN_Acc\tF_Strict\tF_Lenient\tF_MRR\tL_P\tL_R\tL_F1\tYN_macroF1\tYN_F1_yes\tYN_F1_no\tR_2_Rec\tR_2_F1\tR_SU4_Rec\tR_SU4_F1"
 echo -e "$HEADER" > "$OUTPUT_TSV"
-PERQ_HEADER="split\tquestion_id\tYN_Acc\tF_Strict\tF_Lenient\tF_MRR\tL_P\tL_R\tL_F1\tYN_macroF1\tYN_F1_yes\tYN_F1_no"
+PERQ_HEADER="split\tquestion_id\tYN_Acc\tF_Strict\tF_Lenient\tF_MRR\tL_P\tL_R\tL_F1\tYN_macroF1\tYN_F1_yes\tYN_F1_no\tR_2_Rec\tR_2_F1\tR_SU4_Rec\tR_SU4_F1"
 if [[ "$PERQUESTION" == true ]]; then
   PERQ_FILE="${OUTPUT_TSV%.tsv}_perq.tsv"
   echo -e "$PERQ_HEADER" > "$PERQ_FILE"
@@ -109,12 +109,12 @@ for i in "${!PAIRS_SYSTEM[@]}"; do
   system_path="${PAIRS_SYSTEM[$i]}"
   if [[ ! -f "$golden_path" ]]; then
     echo "Skip (golden not found): $golden_path" >&2
-    echo -e "$(basename "$system_path" .json)\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA" >> "$OUTPUT_TSV"
+    echo -e "$(basename "$system_path" .json)\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA" >> "$OUTPUT_TSV"
     continue
   fi
   if [[ ! -f "$system_path" ]]; then
     echo "Skip (system not found): $system_path" >&2
-    echo -e "$(basename "$system_path" .json)\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA" >> "$OUTPUT_TSV"
+    echo -e "$(basename "$system_path" .json)\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA" >> "$OUTPUT_TSV"
     continue
   fi
   split_id=$(basename "$system_path" .json)
@@ -124,12 +124,12 @@ for i in "${!PAIRS_SYSTEM[@]}"; do
   java_args+=("$golden_path" "$system_path")
   out=$(java -Xmx10G -cp "$CP" evaluation.EvaluatorTask1b "${java_args[@]}" 2>&1) || true
 
-  # Metrics line: starts with number, has enough numeric fields (Phase B = 10 numbers)
-  line=$(echo "$out" | awk '/^[0-9.]/ { n=NF; if (n>=8) line=$0 } END { if (n>=8) print line }')
+  # Metrics line: starts with number, has enough fields (Phase B = 10 or 14 columns; last 4 may be NA)
+  line=$(echo "$out" | awk '/^[0-9.]/ { n=NF; if (n>=10) line=$0 } END { if (n>=10) print line }')
   # If we requested -perQuestion but got no metrics, JAR may not support it; retry without -perQuestion
   if [[ -z "$line" && "$PERQUESTION" == true ]]; then
     out=$(java -Xmx10G -cp "$CP" evaluation.EvaluatorTask1b -phaseB -e "$VERSION" "$golden_path" "$system_path" 2>&1) || true
-    line=$(echo "$out" | awk '/^[0-9.]/ { n=NF; if (n>=8) line=$0 } END { if (n>=8) print line }')
+    line=$(echo "$out" | awk '/^[0-9.]/ { n=NF; if (n>=10) line=$0 } END { if (n>=10) print line }')
     [[ -z "$line" ]] || echo "Note: JAR does not support -perQuestion; rebuild from source for per-question stats. Aggregate only for: $split_id" >&2
   fi
 
@@ -141,14 +141,14 @@ for i in "${!PAIRS_SYSTEM[@]}"; do
 
   if [[ -z "$line" ]]; then
     echo "No metrics for: $split_id" >&2
-    echo -e "${split_id}\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA" >> "$OUTPUT_TSV"
+    echo -e "${split_id}\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA\tNA" >> "$OUTPUT_TSV"
     continue
   fi
 
   row=$(echo "$line" | awk -v split_id="$split_id" -v OFS='\t' '{
     printf "%s", split_id;
-    for (i=1;i<=NF && i<=10;i++) printf "\t%s", $i;
-    for (i=NF+1;i<=10;i++) printf "\tNA";
+    for (i=1;i<=NF && i<=14;i++) printf "\t%s", $i;
+    for (i=NF+1;i<=14;i++) printf "\tNA";
     printf "\n";
   }')
   echo "$row" >> "$OUTPUT_TSV"

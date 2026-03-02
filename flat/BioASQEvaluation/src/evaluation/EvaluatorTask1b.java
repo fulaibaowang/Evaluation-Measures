@@ -199,7 +199,11 @@ public class EvaluatorTask1b {
             //put to qevalArray
             qevalArray.add(qeval);
         }
-        // Now, give the array with "question-level measures" to calculate "set-level measures" (averaging) 
+        // Now, give the array with "question-level measures" to calculate "set-level measures" (averaging)
+        double r2Rec = averageRougeOverQuestions(qevalArray, 1);
+        double r2F1 = averageRougeOverQuestions(qevalArray, 2);
+        double su4Rec = averageRougeOverQuestions(qevalArray, 3);
+        double su4F1 = averageRougeOverQuestions(qevalArray, 4);
         System.out.print(
                 AccuracyExactAnswersYesNo(qevalArray) + " "
                         + strictAccuracy(qevalArray) + " "
@@ -210,7 +214,8 @@ public class EvaluatorTask1b {
                         + listF1(qevalArray) + " "
                         + macroF1ExactAnswersYesNo(qevalArray) + " "
                         + F1ExactAnswersYesNo(qevalArray, true) + " "
-                        + F1ExactAnswersYesNo(qevalArray, false));
+                        + F1ExactAnswersYesNo(qevalArray, false) + " "
+                        + num(r2Rec) + " " + num(r2F1) + " " + num(su4Rec) + " " + num(su4F1));
         System.out.println();
 
         if (this.verbosity) {
@@ -305,6 +310,17 @@ public class EvaluatorTask1b {
     public double macroF1ExactAnswersYesNo(ArrayList<QuestionAnswerEvaluator> qeval) {
         // macroF1 = (F1yes + F1no) / 2 
         return (F1ExactAnswersYesNo(qeval, true) + F1ExactAnswersYesNo(qeval, false)) / 2;
+    }
+
+    /** Average ROUGE over questions that have non-NaN value. which: 1=r2Rec, 2=r2F1, 3=su4Rec, 4=su4F1. */
+    private static double averageRougeOverQuestions(ArrayList<QuestionAnswerEvaluator> qeval, int which) {
+        double sum = 0;
+        int n = 0;
+        for (QuestionAnswerEvaluator q : qeval) {
+            double v = which == 1 ? q.getRouge2Recall() : which == 2 ? q.getRouge2F1() : which == 3 ? q.getRougeSu4Recall() : q.getRougeSu4F1();
+            if (!Double.isNaN(v)) { sum += v; n++; }
+        }
+        return n == 0 ? Double.NaN : sum / n;
     }
 
     /**
@@ -987,6 +1003,9 @@ public class EvaluatorTask1b {
             } else {
                 sb.append("\tNA\tNA\tNA");
             }
+            // ROUGE ideal answer: R_2_Rec, R_2_F1, R_SU4_Rec, R_SU4_F1
+            sb.append("\t").append(num(q.getRouge2Recall())).append("\t").append(num(q.getRouge2F1()))
+              .append("\t").append(num(q.getRougeSu4Recall())).append("\t").append(num(q.getRougeSu4F1()));
             System.out.println(sb.toString());
         }
     }
