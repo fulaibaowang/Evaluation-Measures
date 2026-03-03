@@ -187,9 +187,13 @@ public class EvaluatorTask1b {
         for (int i = 0; i < goldenData.numQuestions(); i++) {
             Question gold = goldenData.getQuestion(i);
             Question resp = systemResp.getQuestion(gold.getId());
-            if (VERSION_OF_CHALLENGE == BIOASQ9 && ((gold.getExact_answer()==null || gold.getExact_answer().getAnswer() == null && gold.getExact_answer().getLists().isEmpty()
-                    && gold.getExact_answer().getAnswers().isEmpty()) || resp == null)) {
-                continue;
+            if (VERSION_OF_CHALLENGE == BIOASQ9) {
+                if (resp == null) continue;
+                boolean noExactAnswer = gold.getExact_answer() == null
+                        || (gold.getExact_answer().getAnswer() == null
+                            && gold.getExact_answer().getLists().isEmpty()
+                            && gold.getExact_answer().getAnswers().isEmpty());
+                if (noExactAnswer && gold.getType() != Question.SUMMARY) continue;
             }
             // Create an evaluator for this pair
             QuestionAnswerEvaluator qeval = new QuestionAnswerEvaluator(gold.getId(),

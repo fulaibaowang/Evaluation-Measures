@@ -95,6 +95,12 @@ if [[ ${#PAIRS_GOLDEN[@]} -eq 0 ]]; then
   exit 1
 fi
 
+# Ensure output directory exists (if any)
+out_dir="$(dirname "$OUTPUT_TSV")"
+if [[ -n "$out_dir" && "$out_dir" != "." ]]; then
+  mkdir -p "$out_dir"
+fi
+
 # Phase B output order (14): YN_Acc..YN_F1_no, then R_2_Rec, R_2_F1, R_SU4_Rec, R_SU4_F1
 HEADER="split\tYN_Acc\tF_Strict\tF_Lenient\tF_MRR\tL_P\tL_R\tL_F1\tYN_macroF1\tYN_F1_yes\tYN_F1_no\tR_2_Rec\tR_2_F1\tR_SU4_Rec\tR_SU4_F1"
 echo -e "$HEADER" > "$OUTPUT_TSV"

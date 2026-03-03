@@ -15,11 +15,20 @@ public final class RougeMetrics {
     private RougeMetrics() {}
 
     /**
-     * Tokenize: split on whitespace, lowercase. Non-alphanumeric stripped for consistency.
+     * Tokenize: split on whitespace, lowercase.
+     * - Preserve hyphens inside tokens (e.g. "il-6").
+     * - Preserve letters/digits from all scripts; normalize a few common Greek letters to ASCII.
      */
     private static String[] tokenize(String text) {
         if (text == null || text.isEmpty()) return new String[0];
-        String normalized = text.toLowerCase().trim().replaceAll("[^a-z0-9\\s]", " ");
+        String normalized = text.toLowerCase();
+        // Normalize some frequent Greek letters used in biomedical terms
+        normalized = normalized.replace("\u03b1", "alpha")
+                               .replace("\u03b2", "beta")
+                               .replace("\u03b3", "gamma")
+                               .replace("\u03b4", "delta");
+        // Keep letters, digits, whitespace and hyphens; replace other punctuation with space
+        normalized = normalized.trim().replaceAll("[^\\p{L}\\p{Nd}\\s-]", " ");
         String[] tokens = TOKENIZE.split(normalized);
         if (tokens.length == 1 && tokens[0].isEmpty()) return new String[0];
         return tokens;
@@ -43,7 +52,7 @@ public final class RougeMetrics {
     public static double rouge2Recall(String system, String ref) {
         String[] sTokens = tokenize(system);
         String[] rTokens = tokenize(ref);
-        if (rTokens.length < 2) return Double.NaN;
+        if (rTokens.length < 2) return 0.0;
         Map<String, Integer> sBigrams = bigrams(sTokens);
         Map<String, Integer> rBigrams = bigrams(rTokens);
         int match = 0;
@@ -53,7 +62,7 @@ public final class RougeMetrics {
             refTotal += rCount;
             match += Math.min(rCount, sBigrams.getOrDefault(e.getKey(), 0));
         }
-        if (refTotal == 0) return Double.NaN;
+        if (refTotal == 0) return 0.0;
         return (double) match / refTotal;
     }
 
@@ -63,7 +72,7 @@ public final class RougeMetrics {
     public static double rouge2Precision(String system, String ref) {
         String[] sTokens = tokenize(system);
         String[] rTokens = tokenize(ref);
-        if (sTokens.length < 2) return Double.NaN;
+        if (sTokens.length < 2) return 0.0;
         Map<String, Integer> sBigrams = bigrams(sTokens);
         Map<String, Integer> rBigrams = bigrams(rTokens);
         int match = 0;
@@ -73,7 +82,7 @@ public final class RougeMetrics {
             sysTotal += sCount;
             match += Math.min(sCount, rBigrams.getOrDefault(e.getKey(), 0));
         }
-        if (sysTotal == 0) return Double.NaN;
+        if (sysTotal == 0) return 0.0;
         return (double) match / sysTotal;
     }
 
@@ -83,7 +92,7 @@ public final class RougeMetrics {
     public static double rouge2F1(String system, String ref) {
         double r = rouge2Recall(system, ref);
         double p = rouge2Precision(system, ref);
-        if (Double.isNaN(r) || Double.isNaN(p) || (p + r == 0)) return Double.NaN;
+        if (p + r == 0) return 0.0;
         return 2.0 * p * r / (p + r);
     }
 
@@ -117,7 +126,7 @@ public final class RougeMetrics {
     public static double rougeSu4Recall(String system, String ref) {
         String[] sTokens = tokenize(system);
         String[] rTokens = tokenize(ref);
-        if (rTokens.length == 0) return Double.NaN;
+        if (rTokens.length == 0) return 0.0;
         Map<String, Integer> sUni = unigrams(sTokens);
         Map<String, Integer> rUni = unigrams(rTokens);
         Map<String, Integer> sSkip = skipBigrams(sTokens, 4);
@@ -130,7 +139,7 @@ public final class RougeMetrics {
         int refTotal = 0;
         for (int c : rUni.values()) refTotal += c;
         for (int c : rSkip.values()) refTotal += c;
-        if (refTotal == 0) return Double.NaN;
+        if (refTotal == 0) return 0.0;
         return (double) match / refTotal;
     }
 
@@ -140,7 +149,7 @@ public final class RougeMetrics {
     public static double rougeSu4Precision(String system, String ref) {
         String[] sTokens = tokenize(system);
         String[] rTokens = tokenize(ref);
-        if (sTokens.length == 0) return Double.NaN;
+        if (sTokens.length == 0) return 0.0;
         Map<String, Integer> sUni = unigrams(sTokens);
         Map<String, Integer> rUni = unigrams(rTokens);
         Map<String, Integer> sSkip = skipBigrams(sTokens, 4);
@@ -153,7 +162,7 @@ public final class RougeMetrics {
         int sysTotal = 0;
         for (int c : sUni.values()) sysTotal += c;
         for (int c : sSkip.values()) sysTotal += c;
-        if (sysTotal == 0) return Double.NaN;
+        if (sysTotal == 0) return 0.0;
         return (double) match / sysTotal;
     }
 
@@ -163,7 +172,7 @@ public final class RougeMetrics {
     public static double rougeSu4F1(String system, String ref) {
         double r = rougeSu4Recall(system, ref);
         double p = rougeSu4Precision(system, ref);
-        if (Double.isNaN(r) || Double.isNaN(p) || (p + r == 0)) return Double.NaN;
+        if (p + r == 0) return 0.0;
         return 2.0 * p * r / (p + r);
     }
 }
