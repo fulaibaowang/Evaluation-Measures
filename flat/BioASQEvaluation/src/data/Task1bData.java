@@ -231,6 +231,9 @@ public class Task1bData {
                               }
                               qst.setExact_answer(ea);
                           }
+                          else if (peek == JsonToken.NULL) {
+                              reader.nextNull();
+                          }
                          
                       }
                       else if(name.equals("ideal_answer"))
@@ -244,6 +247,8 @@ public class Task1bData {
                               if (reader.hasNext()) ideal = reader.nextString();
                               while (reader.hasNext()) reader.skipValue();
                               reader.endArray();
+                          } else if (idealPeek == JsonToken.NULL) {
+                              reader.nextNull();
                           }
                           qst.setIdeal_answer(ideal != null ? ideal : "");
                       }
